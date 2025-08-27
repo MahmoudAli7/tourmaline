@@ -179,7 +179,7 @@ async function loadGeoTiffOverlay(map) {
 window.addEventListener("DOMContentLoaded", () => {
   const map = L.map("map", {
     zoomControl: false, // Remove default zoom controls
-    minZoom: 19,
+    minZoom: 17,
     maxZoom: 20,
   });
 
