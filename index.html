@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>POI Map</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    >
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+      /* Modal styles */
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+      .hidden { display: none; }
+      .modal-content {
+        width: min(92vw, 700px);
+        max-height: 85vh;
+        overflow: auto;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        padding: 16px 20px 20px;
+      }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .modal-title {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+      .close-btn {
+        border: none;
+        background: transparent;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .modal-body {
+        margin-top: 8px;
+        display: grid;
+        gap: 8px;
+      }
+      .field {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 8px;
+        align-items: start;
+      }
+      .field label {
+        color: #555;
+        font-weight: 600;
+      }
+      .images {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .images img {
+        width: 100%;
+        max-width: 350px;
+        height: auto;
+        max-height: 300px;
+        object-fit: contain;
+        border-radius: 8px;
+        border: 2px solid #e5e7eb;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .images img:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      }
+      /* Full-screen image overlay */
+      .image-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        cursor: pointer;
+      }
+      .image-overlay.hidden {
+        display: none;
+      }
+      .image-overlay img {
+        max-width: 95vw;
+        max-height: 95vh;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      }
+      .image-overlay-close {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: white;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 2001;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
+      .image-overlay-close:hover {
+        color: #ccc;
+      }
+      .empty-images {
+        color: #666;
+        font-style: italic;
+      }
+      .attribution {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        background: rgba(255,255,255,0.85);
+        padding: 4px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      /* Polygon tooltip styling */
+      .polygon-tooltip {
+        background: rgba(255, 107, 53, 0.9) !important;
+        border: 2px solid #FF6B35 !important;
+        border-radius: 6px !important;
+        color: white !important;
+        font-weight: bold !important;
+        font-size: 12px !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.7) !important;
+        padding: 4px 8px !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+      }
+      .polygon-tooltip::before {
+        display: none !important;
+      }
+      /* Map Legend */
+      .map-legend {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 3px solid #333;
+        border-radius: 12px;
+        padding: 18px;
+        z-index: 1000;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        font-family: Arial, sans-serif;
+        min-width: 200px;
+      }
+      .map-legend h3 {
+        margin: 0 0 15px 0;
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        text-align: center;
+        border-bottom: 2px solid #ccc;
+        padding-bottom: 8px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 15px;
+      }
+      .legend-symbol {
+        width: 22px;
+        height: 22px;
+        margin-right: 12px;
+        border-radius: 50%;
+        border: 3px solid #000;
+        flex-shrink: 0;
+      }
+      .poi-ne { background-color: #ff0000; } /* red */
+      .poi-nw { background-color: #00ff00; } /* green */
+      .poi-se { background-color: #ffff00; } /* yellow */
+      .poi-sw { background-color: #0000ff; } /* blue */
+      .tree-symbol {
+        background: none;
+        border: none;
+        width: 26px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      .tree-icon {
+        position: relative;
+        width: 18px;
+        height: 18px;
+      }
+      .tree-crown {
+        width: 18px;
+        height: 18px;
+        background: #2E7D32;
+        border: 2px solid #1B5E20;
+        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      }
+      .tree-trunk {
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 8px;
+        background: #5D4037;
+        border: 1px solid #3E2723;
+        border-radius: 2px;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+      }
+      .polygon-symbol {
+        background-color: #FF6B35;
+        border-radius: 3px;
+        opacity: 0.7;
+      }
+      /* North Arrow */
+      .north-arrow {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 3px solid #333;
+        border-radius: 50%;
+        width: 80px;
+        height: 80px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+      }
+      .north-arrow-symbol {
+        font-size: 32px;
+        color: #333;
+        line-height: 1;
+      }
+      .north-arrow-text {
+        font-size: 14px;
+        font-weight: bold;
+        color: #333;
+        margin-top: -3px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    
+    <!-- Map Legend -->
+    <div id="map-legend" class="map-legend">
+      <h3>Legend</h3>
+      <div class="legend-item">
+        <div class="legend-symbol poi-ne"></div>
+        <span>NE Points</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-symbol poi-nw"></div>
+        <span>NW Points</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-symbol poi-se"></div>
+        <span>SE Points</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-symbol poi-sw"></div>
+        <span>SW Points</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-symbol tree-symbol">
+          <div class="tree-icon">
+            <div class="tree-crown"></div>
+            <div class="tree-trunk"></div>
+          </div>
+        </div>
+        <span>Trees</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-symbol polygon-symbol"></div>
+        <span>Emission Sources</span>
+      </div>
+    </div>
+
+    <!-- North Arrow -->
+    <div id="north-arrow" class="north-arrow">
+      <div class="north-arrow-symbol">⬆</div>
+      <div class="north-arrow-text">N</div>
+    </div>
+
+    <div id="poi-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title" class="modal-title">Point</h2>
+          <button id="modal-close" class="close-btn" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="field"><label>Name</label><div id="modal-name">—</div></div>
+          <div class="field"><label>Location</label><div id="modal-location">—</div></div>
+          <div class="field"><label>SV2 Serial</label><div id="modal-sv2">—</div></div>
+          <div class="field"><label>MK1 Serial</label><div id="modal-mk1">—</div></div>
+          <div class="field"><label>SLB Serial</label><div id="modal-slb">—</div></div>
+          <div class="field" style="grid-template-columns: 1fr;">
+            <label>Images</label>
+            <div id="modal-images" class="images"></div>
+            <div id="modal-images-empty" class="empty-images hidden">No images available for this point.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tree POI Modal -->
+    <div id="tree-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tree-modal-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="tree-modal-title" class="modal-title">Tree</h2>
+          <button id="tree-modal-close" class="close-btn" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="field"><label>Name</label><div id="tree-modal-name">—</div></div>
+          <div class="field"><label>Location</label><div id="tree-modal-location">—</div></div>
+          <div class="field"><label>Height</label><div id="tree-modal-height">—</div></div>
+          <div class="field" style="grid-template-columns: 1fr;">
+            <label>Images</label>
+            <div id="tree-modal-images" class="images"></div>
+            <div id="tree-modal-images-empty" class="empty-images hidden">No images available for this tree.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Polygon POI Modal -->
+    <div id="polygon-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="polygon-modal-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="polygon-modal-title" class="modal-title">Building</h2>
+          <button id="polygon-modal-close" class="close-btn" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="field"><label>Name</label><div id="polygon-modal-name">—</div></div>
+          <div class="field"><label>Center Coordinates</label><div id="polygon-modal-center">—</div></div>
+          <div class="field" style="grid-template-columns: 1fr;">
+            <label>Images</label>
+            <div id="polygon-modal-images" class="images"></div>
+            <div id="polygon-modal-images-empty" class="empty-images hidden">No images available for this structure.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full-screen image overlay -->
+    <div id="image-overlay" class="image-overlay hidden">
+      <div class="image-overlay-close" id="image-overlay-close">&times;</div>
+      <img id="overlay-image" src="" alt="Full size image">
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <!-- GeoRaster dependencies -->
+    <script src="https://unpkg.com/proj4"></script>
+    <script src="https://unpkg.com/georaster"></script>
+    <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+    <script src="./script.js"></script>
+  </body>
+  </html>
+
